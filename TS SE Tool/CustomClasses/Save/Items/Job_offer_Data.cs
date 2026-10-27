@@ -8,7 +8,7 @@ namespace TS_SE_Tool.Save.Items
 {
     class Job_offer_Data : SiiNBlockCore
     {
-        internal string target { get; set; } = "";
+        internal Save.DataFormat.SCS_String target { get; set; } = "";
 
         internal uint? expiration_time { get; set; } = null;
 
@@ -30,7 +30,7 @@ namespace TS_SE_Tool.Save.Items
 
         internal int fill_ratio { get; set; } = 0;
 
-        internal List<DataFormat.Vector_3f_4f> trailer_place { get; set; } = new List<DataFormat.Vector_3f_4f>();
+        internal List<DataFormat.SCS_Placement> trailer_place { get; set; } = new List<DataFormat.SCS_Placement>();
 
 
         internal Job_offer_Data()
@@ -143,7 +143,7 @@ namespace TS_SE_Tool.Save.Items
 
                         case var s when s.StartsWith("trailer_place["):
                             {
-                                trailer_place.Add(new DataFormat.Vector_3f_4f(dataLine));
+                                trailer_place.Add(new DataFormat.SCS_Placement(dataLine));
                                 break;
                             }
                     }
@@ -164,7 +164,7 @@ namespace TS_SE_Tool.Save.Items
 
             returnSB.AppendLine("job_offer_data : " + _nameless + " {");
 
-            returnSB.AppendLine(" target: " + target);
+            returnSB.AppendLine(" target: " + target.ToString());
 
             returnSB.AppendLine(" expiration_time: " + (expiration_time == null ? "nil" : expiration_time.ToString()));
             returnSB.AppendLine(" urgency: " + (urgency == null ? "nil" : urgency.ToString()));

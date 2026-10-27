@@ -1,0 +1,48 @@
+name: Relatório experimental do ATS
+description: Envie evidências estruturadas de um teste no American Truck Simulator
+title: "[ATS experimental]: "
+labels: [ATS, experimental]
+body:
+  - type: markdown
+    attributes:
+      value: O ATS é experimental e não validado. Nunca teste no seu único save.
+  - type: checkboxes
+    id: condicoes
+    attributes:
+      label: Condições do teste
+      options:
+        - label: Usei uma cópia de save manual e mantive o ATS fechado durante a edição.
+          required: true
+        - label: Fiz uma alteração isolada e preservei o backup com data e hora.
+          required: true
+  - type: input
+    id: versao_ats
+    attributes:
+      label: Versão do ATS
+    validations:
+      required: true
+  - type: input
+    id: formato_save
+    attributes:
+      label: Formato do save
+    validations:
+      required: true
+  - type: textarea
+    id: recurso_passos
+    attributes:
+      label: Recurso testado e passos exatos
+    validations:
+      required: true
+  - type: textarea
+    id: resultado
+    attributes:
+      label: Resultado da recarga e do teste no jogo
+    validations:
+      required: true
+  - type: textarea
+    id: anexos
+    attributes:
+      label: Anexos
+      description: Anexe os três logs e um diff anonimizado antes/depois.
+    validations:
+      required: true

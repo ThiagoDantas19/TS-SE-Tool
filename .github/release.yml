@@ -1,0 +1,10 @@
+changelog:
+  categories:
+    - title: Novos recursos
+      labels: [enhancement]
+    - title: Correções
+      labels: [bug]
+    - title: Documentação e manutenção
+      labels: [documentation, maintenance]
+    - title: Outras alterações
+      labels: ["*"]

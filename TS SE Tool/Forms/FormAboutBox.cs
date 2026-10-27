@@ -1,4 +1,4 @@
-﻿/*
+/*
    Copyright 2016-2022 LIPtoH <liptoh.codebase@gmail.com>
 
    Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,20 +40,21 @@ namespace TS_SE_Tool
 
         private void SetFormVisual()
         {
-            this.Icon = Utilities.TS_Graphics.IconFromImage(MainForm.ProgUIImgsDict["Info"]);
+            this.Icon = Utilities.Graphics_TSSET.IconFromImage(MainForm.ProgUIImgsDict["Info"]);
         }
 
         private void PopulateFormControls()
         {
+            buttonSupportDeveloper.Visible = false;
+
             labelProductName.Text = Utilities.AssemblyData.AssemblyProduct;
             labelCopyright.Text = Utilities.AssemblyData.AssemblyCopyright;
 
             labelETS2version.Text = String.Join(" - ", MainForm.SupportedSavefileVersionETS2.Select(p => p.ToString()).ToArray()) + " (" + MainForm.SupportedGameVersionETS2 + ")";
-            labelATSversion.Text = String.Join(" - ", MainForm.SupportedSavefileVersionETS2.Select(p => p.ToString()).ToArray()) + " (" + MainForm.SupportedGameVersionATS + ")";
-
+            labelATSversion.Text = "Experimental / not validated in 0.3.12.0 release";
             //
             string[][] referencies = { 
-                new string[] { "SII Decrypt", "https://github.com/ncs-sniper/SII_Decrypt" },
+                new string[] {"SII Decrypt", "https://github.com/ncs-sniper/SII_Decrypt"},
                 new string[] {"PsColorPicker", "https://github.com/exectails/PsColorPicker"},
                 new string[] {"SharpZipLib", "https://github.com/icsharpcode/SharpZipLib"},
                 new string[] {"SqlCeBulkCopy", "https://github.com/ErikEJ/SqlCeBulkCopy"},
@@ -66,13 +67,20 @@ namespace TS_SE_Tool
 
             foreach (string[] tmp in referencies)
             {
-                referenciesText += tmp[0] + "\r\n" + tmp[1] + "\r\n\r\n";
+                referenciesText += tmp[0] + Environment.NewLine + tmp[1] + Environment.NewLine + Environment.NewLine;
             }
             //
-            textBoxDescription.Text = "";
-            textBoxDescription.Text += "This program created by\r\nLIPtoH <" + Utilities.Web_Utilities.External.linkMailDeveloper +
-                                        ">\r\n" + Utilities.Web_Utilities.External.linGithub + "\r\n\r\n";
-            textBoxDescription.Text += "Tools and projects used in this project:\r\n\r\n";
+            textBoxDescription.Text = string.Format(MainForm.HelpTranslateString(this.Name + textBoxDescription.Name),
+                                                     "liptoh.codebase@gmail.com", "https://github.com/LIPtoH/TS-SE-Tool");
+
+            textBoxDescription.Text += Environment.NewLine + Environment.NewLine +
+                                       "Maintained by ThiagoDantas19" + Environment.NewLine +
+                                       "Repository: " + Utilities.Web_Utilities.External.linkGithub + Environment.NewLine +
+                                       "Based on the community continuation by Fabio (ts-se-tool-community)" + Environment.NewLine +
+                                       "Original project by LIPtoH" + Environment.NewLine +
+                                       "ETS2 validation: version 1.61 / save format 97" + Environment.NewLine +
+                                       "ATS status: experimental / not validated" +
+                                       Environment.NewLine + Environment.NewLine;
 
             textBoxDescription.Text += referenciesText;
             //
@@ -89,8 +97,9 @@ namespace TS_SE_Tool
         private void buttonSupportDeveloper_Click(object sender, EventArgs e)
         {
             string url = Utilities.Web_Utilities.External.linkHelpDeveloper;
-            
-            DialogResult result = MessageBox.Show("This will open " + url + " web-page.\nDo you want to continue?", "Support developer", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation,MessageBoxDefaultButton.Button2);
+
+            DialogResult result = MessageBox.Show("This will open " + url + " web-page." + Environment.NewLine + "Do you want to continue?",
+                                                  "Support developer", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation, MessageBoxDefaultButton.Button2);
             if (result == DialogResult.Yes)
                 System.Diagnostics.Process.Start(url);
         }

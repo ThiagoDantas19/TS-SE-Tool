@@ -30,13 +30,31 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
+
 using TS_SE_Tool.Utilities;
 
 namespace TS_SE_Tool
 {
     public partial class FormMain : Form
     {
-        private BackgroundWorker worker;
+        private BackgroundWorker generalWorker;
+
+        //Check if tsset folders exist
+        private void CheckTssetFoldersExist()
+        {
+            TssetFoldersExist = true;
+
+            string[] folderPaths = new string[] { "libs", "img", "lang", "updater" };
+
+            foreach (string path in folderPaths)
+            {
+                if (!Directory.Exists(path))
+                {
+                    TssetFoldersExist = false;
+                    break;
+                }
+            }
+        }
 
         private void LoadExtCountries()
         {
@@ -109,10 +127,12 @@ namespace TS_SE_Tool
         private void LngFileLoader(string _sourcefile, Dictionary<string,string> _destDict, string _ci)
         {
             _destDict.Clear();
+            bool defaultDuplicates = false;
+            string defaultFile = Directory.GetCurrentDirectory() + @"\lang\Default\" + _sourcefile;
 
             try
             {
-                string[] tempFile = File.ReadAllLines(Directory.GetCurrentDirectory() + @"\lang\Default\" + _sourcefile);
+                string[] tempFile = File.ReadAllLines(defaultFile);
 
                 for (int i = 0; i < tempFile.Length; i++)
                 {
@@ -127,9 +147,13 @@ namespace TS_SE_Tool
                         { }
 
                         if (tmp[0] != "")
-                            _destDict.Add(tmp[0], tmp[1]);
+                        {
+                            if (!_destDict.ContainsKey(tmp[0]))
+                                _destDict.Add(tmp[0], tmp[1]);
+                            else
+                                defaultDuplicates = true;
+                        }
                     }
-                        
                 }
             }
             catch
@@ -137,17 +161,25 @@ namespace TS_SE_Tool
                 IO_Utilities.LogWriter(_sourcefile + " file is missing");
             }
 
-            string language = "";
+            if (defaultDuplicates)
+            {
+                var txtToWrite = _destDict.Select(x => string.Join(";", new string[] { x.Key, x.Value })).ToList();
+                txtToWrite.Insert(0, "[Default]");
+
+                File.WriteAllLines(defaultFile, txtToWrite, Encoding.UTF8);
+            }
+
+            string languageFile = "";
 
             if (_ci != "Default")
-                language = _ci += "\\";
+                languageFile = _ci += "\\" + _sourcefile;
 
-            if (!File.Exists(Directory.GetCurrentDirectory() + @"\lang\" + language + _sourcefile))
+            if (!File.Exists(Directory.GetCurrentDirectory() + @"\lang\" + languageFile))
                 return;
 
             try
             {
-                string[] tempFile = File.ReadAllLines(Directory.GetCurrentDirectory() + @"\lang\" + language + _sourcefile);
+                string[] tempFile = File.ReadAllLines(Directory.GetCurrentDirectory() + @"\lang\" + languageFile);
 
                 for (int i = 0; i < tempFile.Length; i++)
                 {
@@ -222,177 +254,155 @@ namespace TS_SE_Tool
 
         private void LoadExtImages()
         {
-            string[] imgpaths;
+            string[] imgNames, imgPaths;
 
-            string[] imgNames = new string[] { "Language", "github", "SCS", "TMP", "PDF", "YouTube", "ProgramSettings", "Settings", "Cross", "Info", "Download", "Question", "NetworkCloud", "Reload", "EditList" };
-            imgpaths = new string[] { @"img\UI\globe.png", @"img\UI\github.png", @"img\UI\SCS.png", @"img\UI\TMP.png", @"img\UI\PDF.png", @"img\UI\YouTube.png", @"img\UI\pSettings.png", @"img\UI\cogwheel.png",
-                                    @"img\UI\quit.png", @"img\UI\info.png", @"img\UI\download.png", @"img\UI\question.png", @"img\UI\networkCloud.png", @"img\UI\reload.png", @"img\UI\edit.png"};
+            //=== UI images
 
-            for(int i = 0; i < imgpaths.Length; i++)
-            {
-                ProgUIImgsDict.Add(imgNames[i], Bitmap.FromFile(imgpaths[i]));
-            }
+            imgNames = new string[] { "Language", "github", "SCS", "TMP", "PDF", "YouTube", 
+                                        "ProgramSettings", "Settings", "Cross", "Info", "Download",
+                                        "Question", "NetworkCloud", "Reload", "EditList",
+                                        "Extract"};
 
-            MemoryStream ms = new MemoryStream();
-            ImageFromDDS(@"img\service_ico.dds").Save(ms, ImageFormat.Png);
-            RepairImg = Image.FromStream(ms);
-            ms.Dispose();
+            imgPaths = new string[] { @"img\UI\globe.png", @"img\UI\github.png", @"img\UI\SCS.png", @"img\UI\TMP.png", @"img\UI\PDF.png", @"img\UI\YouTube.png",
+                                        @"img\UI\pSettings.png", @"img\UI\cogwheel.png", @"img\UI\quit.png", @"img\UI\info.png", @"img\UI\download.png",
+                                        @"img\UI\question.png", @"img\UI\networkCloud.png", @"img\UI\reload.png", @"img\UI\edit.png",
+                                        @"img\UI\extract.png"};
 
-            ms = new MemoryStream();
-            ImageFromDDS(@"img\gas_ico.dds").Save(ms, ImageFormat.Png);
-            RefuelImg = Image.FromStream(ms);
-            ms.Dispose();
+            Image[] tmpArray = Graphics_TSSET.ImgFromFileLoader(imgPaths);
 
-            ms = new MemoryStream();
-            ImageFromDDS(@"img\customize_p.dds").Save(ms, ImageFormat.Png);
-            CustomizeImg = Image.FromStream(ms);
-            ms.Dispose();
+            for (int i = 0; i < imgPaths.Length; i++)
+                ProgUIImgsDict.Add(imgNames[i], tmpArray[i]);
 
-            imgpaths = new string[] { @"img\" + GameType + @"\adr_1.dds", @"img\" + GameType + @"\adr_2.dds", @"img\" + GameType + @"\adr_3.dds", @"img\" + GameType + @"\adr_4.dds", @"img\" + GameType + @"\adr_6.dds", @"img\" + GameType + @"\adr_8.dds" };
-            ADRImgS = ExtImgLoader(imgpaths, 46, 46, 9, 9, 32, 32);
+            imgNames = new string[] { "plus", "minus" };
+            imgPaths = new string[] { @"img\UI\add.dds", @"img\UI\remove.dds"};
 
-            imgpaths = new string[] { @"img\" + GameType + @"\adr_1_grey.dds", @"img\" + GameType + @"\adr_2_grey.dds", @"img\" + GameType + @"\adr_3_grey.dds", @"img\" + GameType + @"\adr_4_grey.dds", @"img\" + GameType + @"\adr_6_grey.dds", @"img\" + GameType + @"\adr_8_grey.dds" };
-            ADRImgSGrey = ExtImgLoader(imgpaths, 46, 46, 9, 9, 32, 32);
+            tmpArray = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
 
-            imgpaths = new string[] { @"img\skill_bar_s.dds", @"img\skill_bar_s2.dds", @"img\skill_bar1.dds", @"img\skill_bar2.dds", @"img\skill_bar3.dds" };
+            for (int i = 0; i < imgPaths.Length; i++)
+                ProgUIImgsDict.Add(imgNames[i], tmpArray[i]);
+            
+
+            //=== Game Icons
+
+            imgPaths = new string[] { @"img\ETS2\game_n.dds", @"img\ATS\game_n.dds" };
+            GameIconeImg = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
+
+            //=== Main icons
+
+            imgPaths = new string[] { @"img\UI\unknown.dds" };
+            MainIcons = Graphics_TSSET.ddsImgLoader(imgPaths, 95, 95).images;
+
+            //=== Tab page icons
+
+            imgPaths = new string[] { @"img\UI\MainTabs\profiles.dds", @"img\UI\MainTabs\comp_man.dds", @"img\UI\MainTabs\truck_service.dds", @"img\UI\MainTabs\trailers.dds",
+                                      @"img\UI\MainTabs\company_job.dds", @"img\UI\MainTabs\cargo_market.dds", @"img\UI\MainTabs\maps.dds" };
+            TabpagesImages.Images.AddRange(Graphics_TSSET.ddsImgLoader(imgPaths, 64, 64, 64, 0).images);
+
+            //=== Profile
+
+            // skill icons
+            imgPaths = new string[] { @"img\UI\Profile\skill_adr.dds", @"img\UI\Profile\skill_distance.dds", @"img\UI\Profile\skill_heavy.dds", @"img\UI\Profile\skill_fragile.dds",
+                                      @"img\UI\Profile\skill_jit.dds", @"img\UI\Profile\skill_mechanical.dds" };
+            SkillImgS = Graphics_TSSET.ddsImgLoader(imgPaths, 64, 64).images;
+
+            // ADR icons
+            imgPaths = new string[] { @"img\" + GameType + @"\adr_1.dds", @"img\" + GameType + @"\adr_2.dds", @"img\" + GameType + @"\adr_3.dds", 
+                                      @"img\" + GameType + @"\adr_4.dds", @"img\" + GameType + @"\adr_6.dds", @"img\" + GameType + @"\adr_8.dds" };
+            ADRImgS = Graphics_TSSET.ddsImgLoader(imgPaths, 46, 46, 9, 9, 32, 32).images;
+
+            imgPaths = new string[] { @"img\" + GameType + @"\adr_1_grey.dds", @"img\" + GameType + @"\adr_2_grey.dds", @"img\" + GameType + @"\adr_3_grey.dds", 
+                                      @"img\" + GameType + @"\adr_4_grey.dds", @"img\" + GameType + @"\adr_6_grey.dds", @"img\" + GameType + @"\adr_8_grey.dds" };
+            ADRImgSGrey = Graphics_TSSET.ddsImgLoader(imgPaths, 46, 46, 9, 9, 32, 32).images;
+
+            // skill level select
+            imgPaths = new string[] { @"img\UI\Profile\skill_bar_s.dds", @"img\UI\Profile\skill_bar_s2.dds", @"img\UI\Profile\skill_bar1.dds", @"img\UI\Profile\skill_bar2.dds", @"img\UI\Profile\skill_bar3.dds" };
+
             int y = 9;
-            for (int i = 0; i < 5; i++)
+            for (int i = 0; i < imgPaths.Count(); i++)
             {
-                if (i == 2)
-                    y = 8;
-                ms = new MemoryStream();
-                Bitmap temp = ImageFromDDS(imgpaths[i]);
-                temp.Clone(new Rectangle(9, y, 46, 46), temp.PixelFormat).Save(ms, ImageFormat.Png);
-                SkillImgSBG[i] = Image.FromStream(ms);
-                ms.Dispose();
+                if (i == 2) y = 8;
+
+                SkillImgSBG[i] = Graphics_TSSET.ddsImgLoader(new[] { imgPaths[i] }, 46, 46, 9, y).images[0];
             }
 
-            imgpaths = new string[] { @"img\skill_adr.dds", @"img\skill_distance.dds", @"img\skill_heavy.dds", @"img\skill_fragile.dds", @"img\skill_jit.dds", @"img\skill_mechanical.dds" };
-            SkillImgS = ExtImgLoader(imgpaths, 64, 64, 0, 0);
+            //=== Company
 
-            imgpaths = new string[] { @"img\profiles.dds", @"img\comp_man.dds", @"img\truck_service.dds", @"img\trailers.dds", @"img\company_job.dds", @"img\cargo_market.dds", @"img\maps.dds" };
-            TabpagesImages.Images.AddRange (ExtImgLoader(imgpaths, 64, 64, 64, 0));
-            //Garages
-            imgpaths = new string[] { @"img\garage_free_ico.dds", @"img\garage_free_ico.dds", @"img\garage_small_ico.dds", @"img\garage_large_ico.dds", @"img\garage_free_ico.dds", @"img\garage_free_ico.dds", @"img\garage_tiny_ico.dds" };
-            GaragesImg = ExtImgLoader(imgpaths, 32, 32, 0, 0);
-            //HQ garages
-            imgpaths = new string[] { @"img\garage_free_ico.dds", @"img\garage_free_ico.dds", @"img\hq_garage_ico_small_n.dds", @"img\hq_garage_ico_big_n.dds", @"img\garage_free_ico.dds", @"img\garage_free_ico.dds", @"img\hq_garage_ico_tiny_n.dds" };
-            GaragesHQImg = ExtImgLoader(imgpaths, 32, 32, 0, 0);
+            // garages
+            imgPaths = new string[] { @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\garage_small_ico.dds", @"img\UI\Company\Garages\garage_large_ico.dds",
+                                      @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\garage_tiny_ico.dds" };
+            GaragesImg = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
 
-            imgpaths = new string[] { @"img\city_pin_0.dds", @"img\city_pin_1.dds"};
-            CitiesImg = ExtImgLoader(imgpaths, 32, 32, 0, 0);
+            // hq
+            imgPaths = new string[] { @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\hq_garage_ico_small_n.dds", @"img\UI\Company\Garages\hq_garage_ico_big_n.dds",
+                                      @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\garage_free_ico.dds", @"img\UI\Company\Garages\hq_garage_ico_tiny_n.dds" };
+            GaragesHQImg = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
 
-            imgpaths = new string[] { @"img\easy.dds", @"img\normal.dds", @"img\hard.dds" };
-            UrgencyImg = ExtImgLoader(imgpaths, 32, 32, 0, 0);
+            // visited cities
+            imgPaths = new string[] { @"img\UI\Company\VisitedCities\city_pin_0.dds", @"img\UI\Company\VisitedCities\city_pin_1.dds", @"img\UI\Company\VisitedCities\city_pin_2.dds", @"img\UI\notice_star.dds" };
+            CitiesImg = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
 
-            imgpaths = new string[] { @"img\none_32.dds", @"img\heavy.dds", @"img\articulated.dds" };
-            CargoTypeImg =  ExtImgLoader(imgpaths, 32, 32, 0, 0);
 
-            imgpaths = new string[] { @"img\fragile.dds", @"img\valuable.dds" };
-            CargoType2Img = ExtImgLoader(imgpaths, 32, 32, 0, 0);
+            //=== Truck & Trailer tab
 
-            imgpaths = new string[] { @"img\" + GameType + @"\engine.dds", @"img\" + GameType + @"\transmission.dds", @"img\" + GameType + @"\chassis.dds", @"img\" + GameType + @"\cabin.dds", @"img\" + GameType + @"\tyres.dds" };
-            TruckPartsImg = ExtImgLoader(imgpaths, 64, 64, 0, 0);
+            // truck parts
+            imgPaths = new string[] { @"img\" + GameType + @"\engine.dds", @"img\" + GameType + @"\transmission.dds", @"img\" + GameType + @"\chassis.dds", 
+                                      @"img\" + GameType + @"\cabin.dds", @"img\" + GameType + @"\tyres.dds" };
+            TruckPartsImg = Graphics_TSSET.ddsImgLoader(imgPaths, 64, 64).images;
 
-            imgpaths = new string[] { @"img\" + GameType + @"\cargo.dds", @"img\" + GameType + @"\trailer_body.dds", @"img\" + GameType + @"\trailer_chassis.dds", @"img\" + GameType + @"\tyres.dds" };
-            TrailerPartsImg = ExtImgLoader(imgpaths, 64, 64, 0, 0);
+            // trailer parts
+            imgPaths = new string[] { @"img\" + GameType + @"\cargo.dds", @"img\" + GameType + @"\trailer_body.dds", 
+                                      @"img\" + GameType + @"\trailer_chassis.dds", @"img\" + GameType + @"\tyres.dds" };
+            TrailerPartsImg = Graphics_TSSET.ddsImgLoader(imgPaths, 64, 64).images;
 
-            imgpaths = new string[] { @"img\ETS2\game_n.dds", @"img\ATS\game_n.dds" };
-            GameIconeImg = ExtImgLoader(imgpaths, 32, 32, 0, 0);
-        }
+            // integrity progress bar
 
-        public Image[] ExtImgLoader(string[] _filenamesarray)
-        {
-            Image[] tempImgarray = new Image[_filenamesarray.Length];
+            imgPaths = new string[] { @"img\UI\wrench-pattern.png", @"img\UI\swap-pattern.png", @"img\UI\skull-pattern.png" };
 
-            for (int i = 0; i < _filenamesarray.Length; i++)
-            {
-                try
-                {
-                    MemoryStream ms = new MemoryStream();
+            VehicleIntegrityPBImg = Graphics_TSSET.ImgFromFileLoader(imgPaths);
 
-                    if (File.Exists(_filenamesarray[i]))
-                    {
-                        Bitmap temp = ImageFromDDS(_filenamesarray[i]);
-                        temp.Save(ms, ImageFormat.Png);
-                        tempImgarray[i] = Image.FromStream(ms);
-                        ms.Dispose();
-                    }
-                    else
-                        tempImgarray[i] = null;
-                }
-                catch
-                {
-                    tempImgarray[i] = null;
-                }
-            }
+            // buttons
+            imgPaths = new string[] { @"img\UI\Trucks&Trailers\service_ico.dds", @"img\UI\Trucks&Trailers\gas_ico.dds", @"img\UI\customize_p.dds" };
 
-            return tempImgarray;
-        }
+            Image[] imgArray = Graphics_TSSET.ddsImgLoader(imgPaths).images;
 
-        public Image[] ExtImgLoader(string[] _filenamesarray, int _width, int _height, int _x, int _y )
-        {
-            Image[] tempImgarray = new Image[_filenamesarray.Length];
+            RepairImg = imgArray[0];
+            RefuelImg = imgArray[1];
+            CustomizeImg = imgArray[2];
 
-            for (int i = 0; i < _filenamesarray.Length; i++)
-            {
-                try
-                {
-                    MemoryStream ms = new MemoryStream();
-                    Bitmap temp = ImageFromDDS(_filenamesarray[i]);
-                    temp.Clone(new Rectangle(_x, _y, _width, _height), temp.PixelFormat).Save(ms, ImageFormat.Png);
-                    tempImgarray[i] = Image.FromStream(ms);
-                    ms.Dispose();
-                }
-                catch
-                {
-                    tempImgarray[i] = new Bitmap(_width, _height);
-                }
-            }
+            //=== Freight market
 
-            return tempImgarray;
-        }
+            // urgency
+            imgPaths = new string[] { @"img\UI\FreightMarket\JobUrgency\easy.dds", @"img\UI\FreightMarket\JobUrgency\normal.dds", @"img\UI\FreightMarket\JobUrgency\hard.dds" };
+            UrgencyImg = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
 
-        public Image[] ExtImgLoader(string[] _filenamesarray, int _width, int _height, int _x, int _y, int _newwidth, int _newheight)
-        {
-            MemoryStream ms;
-            Image[] tempImgarray = new Image[_filenamesarray.Length];
+            // trailer type
+            imgPaths = new string[] { @"img\UI\FreightMarket\CargoTypes\none_32.dds", @"img\UI\FreightMarket\CargoTypes\heavy.dds", @"img\UI\FreightMarket\CargoTypes\articulated.dds" };
+            CargoTypeImg = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
 
-            for (int i = 0; i < _filenamesarray.Length; i++)
-            {
-                try
-                {
-                    ms = new MemoryStream();
-                    Bitmap temp = ImageFromDDS(_filenamesarray[i]);
-                    temp.Clone(new Rectangle(_x, _y, _width, _height), temp.PixelFormat).Save(ms, ImageFormat.Png);
-                    tempImgarray[i] = new Bitmap(Image.FromStream(ms), new Size(_newwidth, _newheight));
-                    ms.Dispose();
-                }
-                catch
-                {
-                    tempImgarray[i] = new Bitmap(_width, _height);
-                }
-            }
+            // cargo type
+            imgPaths = new string[] { @"img\UI\FreightMarket\CargoTypes\fragile.dds", @"img\UI\FreightMarket\CargoTypes\valuable.dds" };
+            CargoType2Img = Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32).images;
 
-            return tempImgarray;
-        }
+            // Accessories icons
+            List<Image> tmpIMGlist = new List<Image>();
 
-        private Bitmap ImageFromDDS(string _path)
-        {
-            Bitmap bitmap = null;
+            imgPaths = new string[] { @"img\UI\Trucks&Trailers\Accessories\truck_config.dds", @"img\UI\Trucks&Trailers\Accessories\upgrades.dds" };
+            tmpIMGlist.AddRange(Graphics_TSSET.ddsImgLoader(imgPaths, 40, 40, 0, 0, 32, 32).images);
 
-            if (File.Exists(_path))
-            {
-                S16.Drawing.DDSImage asd;
-                using (FileStream fsimage = new FileStream(_path, FileMode.Open))
-                    asd = new S16.Drawing.DDSImage(fsimage);
+            imgPaths = new string[] { @"img\" + GameType + @"\tyres.dds" };
+            tmpIMGlist.AddRange(Graphics_TSSET.ddsImgLoader(imgPaths, 42, 42, 5, 5, 32, 32).images);
 
-                bitmap = asd.BitmapImage;
+            imgPaths = new string[] { @"img\UI\Trucks&Trailers\Accessories\use_preset.dds" };
+            tmpIMGlist.AddRange(Graphics_TSSET.ddsImgLoader(imgPaths, 24, 24, 16, 16, 32, 32).images);
 
-                return bitmap;
-            }
-            else
-                return bitmap;
+            imgPaths = new string[] { @"img\UI\Trucks&Trailers\Accessories\mute_checkbox_2.dds" };
+            tmpIMGlist.AddRange(Graphics_TSSET.ddsImgLoader(imgPaths, 32, 32, 0, 0, 32, 32, 4).images);
+
+            imgPaths = new string[] { @"img\UI\Trucks&Trailers\Accessories\plate_number.dds" };
+            tmpIMGlist.AddRange(Graphics_TSSET.ddsImgLoader(imgPaths, 80, 54, 0, 0, 32, 32).images);
+
+            AccessoriesImg = tmpIMGlist.ToArray();
+
         }
 
         //Save new language strings
@@ -579,176 +589,151 @@ namespace TS_SE_Tool
             return _buffer;
         }
 
-        private void LoadSaveFile()
+        private void LoadSaveFile(object sender, DoWorkEventArgs e)
         {
-            SetDefaultValues(false);
-            ClearFormControls(true);
+            UpdateStatusBarMessage.MainForm = Application.OpenForms.OfType<FormMain>().Single();
 
-            ClearJobData();
-
+            // Status
             UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Info, "message_decoding_save_file");
+            IO_Utilities.LogWriter("Working on " + Globals.SelectedSavePath + " save file");
 
-            SavefilePath = Globals.SavesHex[comboBoxSaves.SelectedIndex];
-            Globals.SelectedSavePath = SavefilePath;
-            Globals.SelectedSave = Globals.SavesHex[comboBoxSaves.SelectedIndex].Split(new string[] { "\\" }, StringSplitOptions.None).Last();
+            // Variables
+            string SiiProfilePath = Globals.SelectedProfilePath + @"\profile.sii";
+            string SiiInfoPath = Globals.SelectedSavePath + @"\info.sii";
+            string SiiSavePath = Globals.SelectedSavePath + @"\game.sii";
 
-            IO_Utilities.LogWriter("Working on " + SavefilePath + " save file");
-
-            string SiiProfilePath = Globals.ProfilesHex[comboBoxProfiles.SelectedIndex] + @"\profile.sii";
-
-            Globals.SelectedProfilePath = Globals.ProfilesHex[comboBoxProfiles.SelectedIndex];
-            Globals.SelectedProfile = Globals.ProfilesHex[comboBoxProfiles.SelectedIndex].Split(new string[] { "\\" }, StringSplitOptions.None).Last();
-
-            string SiiInfoPath = SavefilePath + @"\info.sii";
-
-            string SiiSavePath = SavefilePath + @"\game.sii";
-
-            string dbPath = "dbs/" + GameType + "." + Path.GetFileName(Globals.ProfilesHex[comboBoxProfiles.SelectedIndex]) + ".sdf";
-            DBconnection = new SqlCeConnection("Data Source = " + dbPath);
+            (bool valid, string[] fileArray) resulCheck;
 
             if (File.Exists(SiiSavePath))
+            {
+                string dbPath = "dbs/" + GameType + "." + Path.GetFileName(Globals.SelectedProfilePath) + ".sdf";
+                DBconnection = new SqlCeConnection("Data Source = " + dbPath);
+
                 CreateDatabase(dbPath);
+            }                
             else
+            {
+                e.Cancel = true;
+
+                DialogResult DR = UpdateStatusBarMessage.ShowMessageBox(this, "Save file does not exist.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
                 return;
+            }
 
-            //Profile Info
-            if (!File.Exists(SiiProfilePath))
+            //=== Profile Info
+            resulCheck = preProcessFile(SiiProfilePath, "Profile file");
+
+            if (resulCheck.valid)
             {
-                IO_Utilities.LogWriter("File does not exist in " + SiiProfilePath);
-                UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_could_not_find_file");
+                tempProfileFileInMemory = resulCheck.fileArray;
+
+                MainSaveFileProfileData = new SaveFileProfileData();
+                MainSaveFileProfileData.ProcessData(tempProfileFileInMemory);
+
+                tempProfileFileInMemory = null;
             }
             else
             {
-                FileDecoded = false;
-                try
-                {
-                    int decodeAttempt = 0;
-                    while (decodeAttempt < 5)
-                    {
-                        tempProfileFileInMemory = NewDecodeFile(SiiProfilePath);
+                e.Cancel = true;
 
-                        if (FileDecoded)
-                        {
-                            break;
-                        }
+                DialogResult DR = UpdateStatusBarMessage.ShowMessageBox(this, "Error occured during preprocessing Profile file." + Environment.NewLine +
+                    "Probably New \\ Updated format.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                        decodeAttempt++;
-                    }
-
-                    if (decodeAttempt == 5)
-                    {
-                        UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_could_not_decode_file");
-                        IO_Utilities.LogWriter("Could not decrypt after 5 attempts");
-                    }
-                }
-                catch
-                {
-                    IO_Utilities.LogWriter("Could not read: " + SiiProfilePath);
-                }
-
-                if ((tempProfileFileInMemory == null) || (tempProfileFileInMemory[0] != "SiiNunit"))
-                {
-                    IO_Utilities.LogWriter("Wrongly decoded Profile file or wrong file format");
-                    UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_file_not_decoded");
-
-                    tempProfileFileInMemory = null;
-
-                    SetDefaultValues(false);
-                    ToggleMainControlsAccess(true);
-                    ToggleControlsAccess(false);
-                }
-                else if (tempProfileFileInMemory != null)
-                {
-                    MainSaveFileProfileData = new SaveFileProfileData();
-                    MainSaveFileProfileData.ProcessData(tempProfileFileInMemory);
-                }
+                return;
             }
+            //=== End Profile Info
 
-            tempProfileFileInMemory = null; //clearmemory
-            //End Profile Info
+            //=== Save info
+            resulCheck = preProcessFile(SiiInfoPath, "Info file");
 
-            //Save info
-            if (!File.Exists(SiiInfoPath))
+            if (resulCheck.valid)
             {
-                IO_Utilities.LogWriter("File does not exist in " + SiiInfoPath);
-                UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_could_not_find_file");
+                tempInfoFileInMemory = resulCheck.fileArray;
+
+                CheckSaveInfoData();
+                tempInfoFileInMemory = null;
             }
             else
             {
-                FileDecoded = false;
-                try
-                {
-                    int decodeAttempt = 0;
-                    while (decodeAttempt < 5)
-                    {
-                        tempInfoFileInMemory = NewDecodeFile(SiiInfoPath);
+                e.Cancel = true;
 
-                        if (FileDecoded)
-                        {
-                            break;
-                        }
-                        decodeAttempt++;
-                    }
+                DialogResult DR = UpdateStatusBarMessage.ShowMessageBox(this, "Error occured during preprocessing Info file." + Environment.NewLine +
+                    "Probably New \\ Updated format.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-                    if (decodeAttempt == 5)
-                    {
-                        UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_could_not_decode_file");
-                        IO_Utilities.LogWriter("Could not decrypt after 5 attempts");
-                    }
-                }
-                catch
-                {
-                    IO_Utilities.LogWriter("Could not read: " + SiiInfoPath);
-                }
-
-                if ((tempInfoFileInMemory == null) || (tempInfoFileInMemory[0] != "SiiNunit"))
-                {
-                    IO_Utilities.LogWriter("Wrongly decoded Info file or wrong file format");
-                    UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_file_not_decoded");
-
-                    tempInfoFileInMemory = null;
-
-                    SetDefaultValues(false);
-                    ToggleMainControlsAccess(true);
-                    ToggleControlsAccess(false);
-                }
-                else if (tempInfoFileInMemory != null)
-                {   
-                    CheckSaveInfoData();
-                }
+                return;
             }
 
-            tempInfoFileInMemory = null; //clearmemory
-            //endinfo
+            //=== End Save Info
 
+            //=== Check for Dependencies conflict
             if (!InfoDepContinue)
             {
-                ToggleMainControlsAccess(true);
+                e.Cancel = true;
                 return;
             }
+            //=== End
 
-            //End Save Info
+            //=== Save file
+            resulCheck = preProcessFile(SiiSavePath, "Save file");
 
-            //Save file
-            if (!File.Exists(SiiSavePath))
+            if (resulCheck.valid)
             {
-                IO_Utilities.LogWriter("File does not exist in " + SavefilePath);
-                UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_could_not_find_file");
+                tempSavefileInMemory = resulCheck.fileArray;
+
+                LastModifiedTimestamp = File.GetLastWriteTime(SiiSavePath);
+
+                NewPrepareData();
             }
             else
             {
-                FileDecoded = false;
+                e.Cancel = true;
+
+                DialogResult DR = UpdateStatusBarMessage.ShowMessageBox(this, "Error occured during preprocessing Save file." + Environment.NewLine +
+                    "Probably New \\ Updated Save format.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                return;
+            }
+            // End Save file
+
+            //===
+            (bool valid, string[] fileArray) preProcessFile(string _filePath, string _type)
+            {
+                string[] _inputArray;
+
+                if (!File.Exists(_filePath))
+                {
+                    IO_Utilities.LogWriter("File does not exist in " + _filePath);
+                    UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_could_not_find_file");
+
+                    return (false, null);
+                }
+                else
+                {
+                    FileDecoded = false;
+                    _inputArray = decodeFile(_filePath);
+                    bool checkResult = checkDecodedFile(_inputArray, _type);
+
+                    return (checkResult, _inputArray);
+                }
+            }
+            //===
+            string[] decodeFile(string _filePath)
+            {
+                string[] fileArray = null;
+
                 try
                 {
                     int decodeAttempt = 0;
+
                     while (decodeAttempt < 5)
                     {
-                        tempSavefileInMemory = NewDecodeFile(SiiSavePath);
+                        fileArray = NewDecodeFile(_filePath);
 
                         if (FileDecoded)
                         {
                             break;
                         }
+
                         decodeAttempt++;
                     }
 
@@ -760,40 +745,31 @@ namespace TS_SE_Tool
                 }
                 catch
                 {
-                    IO_Utilities.LogWriter("Could not read: " + SiiSavePath);
+                    IO_Utilities.LogWriter("Could not read: " + _filePath);
                 }
 
-                if ((tempSavefileInMemory == null) || (tempSavefileInMemory[0] != "SiiNunit"))
+                return fileArray;
+            }
+            //===
+            bool checkDecodedFile(string[] _input, string _type)
+            {
+                if (_input == null || _input[0] != "SiiNunit")
                 {
-                    IO_Utilities.LogWriter("Wrongly decoded Save file or wrong file format");
+                    IO_Utilities.LogWriter("Wrongly decoded " + _type + " or wrong file format");
                     UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_file_not_decoded");
 
-                    tempSavefileInMemory = null;
+                    _input = null;
 
-                    SetDefaultValues(false);
-                    ToggleMainControlsAccess(true);
-                    ToggleControlsAccess(false);
+                    return false;
                 }
-                else if (tempSavefileInMemory != null)
-                {
-                    LastModifiedTimestamp = File.GetLastWriteTime(SiiSavePath);
-
-                    worker = new BackgroundWorker();
-                    worker.WorkerReportsProgress = true;
-
-                    worker.DoWork += NewPrepareData;//Start;
-                    worker.ProgressChanged += worker_ProgressChanged;
-                    worker.RunWorkerCompleted += worker_RunWorkerCompleted;
-
-                    worker.RunWorkerAsync();
-                }
+                else
+                    return true;
             }
+            //===
         }
 
-        private void LoadProfileDataFile()
+        private void LoadProfileDataFile(string SiiProfilePath)
         {
-            string SiiProfilePath = Globals.ProfilesHex[comboBoxProfiles.SelectedIndex] + @"\profile.sii";
-
             //Profile Info
             if (!File.Exists(SiiProfilePath))
             {
@@ -848,7 +824,8 @@ namespace TS_SE_Tool
                 }
             }
 
-            tempProfileFileInMemory = null; //clearmemory
+            // RC2.2: keep the decoded profile available for surgical writes.
+            // It is replaced automatically on the next profile load.
         }
 
         private void worker_ProgressChanged(object sender, ProgressChangedEventArgs e)
@@ -858,6 +835,17 @@ namespace TS_SE_Tool
 
         void worker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            if (e.Cancelled == true)
+            {
+                SetDefaultValues(false);
+                ToggleMainControlsAccess(true);
+                ToggleControlsAccess(false);
+
+                //UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Clear);
+
+                return;
+            }
+
             if (SiiNunitData.UnidentifiedBlocks.Count > 0)
             {
                 MessageBox.Show("Some of the blocks in save file was not recognized and it may affect Program behavior." + Environment.NewLine + Environment.NewLine +
@@ -866,17 +854,77 @@ namespace TS_SE_Tool
                     "Unidentified blocks in save file", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
+            SiiNunitData.NamelessControlList.Sort();
+            SiiNunitData.NamelessIgnoreList.Sort();
+            SiiNunitData.UnidentifiedBlocks.Sort();
+
             toolStripProgressBarMain.Value = 0;
             //ClearFormControls(false);
 
             ToggleMainControlsAccess(true);
-            buttonMainDecryptSave.Enabled = false;
             ToggleControlsAccess(true);
 
-            PopulateFormControlsk();
+            PopulateFormControls();
 
-            IO_Utilities.LogWriter("Successfully completed work with " + SavefilePath + " save file");
+            if (IsModernCompatibilityMode())
+            {
+                ApplyModernVehicleTabRestrictions();
+            }
+
+            if (IsModernCompatibilityMode())
+            {
+                MessageBox.Show(
+                    "This save uses a newer ETS2 format." + Environment.NewLine + Environment.NewLine +
+                    "RC5 compatibility mode is active." + Environment.NewLine +
+                    "Enabled: Profile, Basic Company, active truck repair/refuel/plate/odometer, and active trailer repair/plate/odometer/cargo mass." + Environment.NewLine +
+                    "Truck switching, powertrain, parts editor, garages, drivers and markets remain protected." + Environment.NewLine +
+                    "Newer and unknown fields are preserved by patching only changed fields in the original decoded files.",
+                    "ETS2 RC5 compatibility mode",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+
+            IO_Utilities.LogWriter("Successfully completed work with " + Globals.SelectedSavePath + " save file");
+
+            //GC
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
+
+        void workerWrite_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Error != null)
+            {
+                ToggleMainControlsAccess(true);
+                ToggleControlsAccess(true);
+
+                IO_Utilities.ErrorLogWriter("Error during Writing save file" + Environment.NewLine + e.Error.Message + Environment.NewLine + e.Error.StackTrace);
+                MessageBox.Show(
+                    "The save was not replaced because writing failed." + Environment.NewLine +
+                    "The original file and backups were preserved." + Environment.NewLine + Environment.NewLine +
+                    e.Error.Message,
+                    "Error during Writing save file",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                return;
+            }
+
+            toolStripProgressBarMain.Value = 0;
+
+            ClearFormControls(false);
+
+            ToggleMainControlsAccess(true);
+            ToggleControlsAccess(false);
+
+            //GC
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+
+            IO_Utilities.LogWriter("Save game successfully writen in " + Globals.SelectedSavePath);
+            MessageBox.Show("File saved", "Saving", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
 
         private void PrintAddedJobs()
         {
@@ -932,11 +980,418 @@ namespace TS_SE_Tool
                 #endregion
             }
         }
+        // TSSE RC5 compatibility layer
+        private const ushort FullSerializerMaxSaveVersion = 74;
+
+        private bool IsModernCompatibilityMode()
+        {
+            return MainSaveFileInfoData != null &&
+                   MainSaveFileInfoData.Version > FullSerializerMaxSaveVersion;
+        }
+
+        private string BuildModernProfileText()
+        {
+            if (tempProfileFileInMemory == null || tempProfileFileInMemory.Length == 0)
+            {
+                string profilePath = Globals.SelectedProfilePath + "\\profile.sii";
+                IO_Utilities.LogWriter(
+                    "Decoded profile cache is unavailable; decoding the current profile again for a surgical update.");
+
+                FileDecoded = false;
+                tempProfileFileInMemory = NewDecodeFile(profilePath, false);
+
+                if (tempProfileFileInMemory == null ||
+                    tempProfileFileInMemory.Length == 0 ||
+                    tempProfileFileInMemory[0] != "SiiNunit")
+                {
+                    throw new InvalidDataException(
+                        "The current profile could not be decoded for a safe surgical update.");
+                }
+            }
+
+            List<string> output = new List<string>(tempProfileFileInMemory.Length + 8);
+            HashSet<string> replaced = new HashSet<string>(StringComparer.Ordinal);
+            bool insideUserProfile = false;
+
+            foreach (string originalLine in tempProfileFileInMemory)
+            {
+                string line = originalLine ?? "";
+                string trimmed = line.Trim();
+
+                if (!insideUserProfile)
+                {
+                    if (trimmed.StartsWith("user_profile :", StringComparison.Ordinal))
+                        insideUserProfile = true;
+
+                    output.Add(line);
+                    continue;
+                }
+
+                if (trimmed == "}")
+                {
+                    insideUserProfile = false;
+                    output.Add(line);
+                    continue;
+                }
+
+                int colonPosition = trimmed.IndexOf(':');
+                if (colonPosition < 0)
+                {
+                    output.Add(line);
+                    continue;
+                }
+
+                string tag = trimmed.Substring(0, colonPosition).Trim();
+
+                if (tag == "company_name")
+                {
+                    string companyName = MainSaveFileProfileData.CompanyName.Value ?? "";
+                    companyName = Regex.Replace(companyName, @"\s+", " ").Trim();
+
+                    if (companyName.Length == 0)
+                        throw new InvalidDataException("Company name cannot be empty.");
+
+                    if (companyName.Length > 20)
+                        companyName = companyName.Substring(0, 20);
+
+                    output.Add(" company_name: " +
+                        TextUtilities.FromStringToOutputString(companyName));
+                    replaced.Add(tag);
+                    continue;
+                }
+
+                if (tag == "cached_experience")
+                {
+                    output.Add(" cached_experience: " +
+                        SiiNunitData.Economy.experience_points.ToString(CultureInfo.InvariantCulture));
+                    replaced.Add(tag);
+                    continue;
+                }
+
+                output.Add(line);
+            }
+
+            string[] required = { "company_name", "cached_experience" };
+            string[] missing = required.Where(x => !replaced.Contains(x)).ToArray();
+            if (missing.Length > 0)
+            {
+                throw new InvalidDataException(
+                    "Could not locate required fields in decoded profile: " +
+                    String.Join(", ", missing));
+            }
+
+            return String.Join(Environment.NewLine, output);
+        }
+
+        private string BuildModernSaveText()
+        {
+            if (tempSavefileInMemory == null || tempSavefileInMemory.Length == 0)
+                throw new InvalidOperationException("Original decoded save data is not available in memory.");
+
+            SiiNunitData.Economy.getPlayerSkillsFromArray();
+
+            Dictionary<string, string> economyReplacements =
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    { "experience_points", SiiNunitData.Economy.experience_points.ToString(CultureInfo.InvariantCulture) },
+                    { "adr", SiiNunitData.Economy.adr.ToString(CultureInfo.InvariantCulture) },
+                    { "long_dist", SiiNunitData.Economy.long_dist.ToString(CultureInfo.InvariantCulture) },
+                    { "heavy", SiiNunitData.Economy.heavy.ToString(CultureInfo.InvariantCulture) },
+                    { "fragile", SiiNunitData.Economy.fragile.ToString(CultureInfo.InvariantCulture) },
+                    { "urgent", SiiNunitData.Economy.urgent.ToString(CultureInfo.InvariantCulture) },
+                    { "mechanical", SiiNunitData.Economy.mechanical.ToString(CultureInfo.InvariantCulture) }
+                };
+
+            List<string> output = new List<string>(tempSavefileInMemory.Length + 64);
+            HashSet<string> replaced = new HashSet<string>(StringComparer.Ordinal);
+
+            string activeBlock = null;
+            bool skippingOriginalUserColors = false;
+            // RC5.1H9 BEGIN: visited-city writer state.
+            bool skippingOriginalVisitedCitiesH9 = false;
+            bool skippingOriginalVisitedCityCountsH9 = false;
+            // RC5.1H9 END: visited-city writer state.
+
+            foreach (string originalLine in tempSavefileInMemory)
+            {
+                string line = originalLine ?? "";
+                string trimmed = line.Trim();
+
+                if (activeBlock == null)
+                {
+                    if (trimmed.StartsWith("economy :", StringComparison.Ordinal))
+                        activeBlock = "economy";
+                    else if (trimmed.StartsWith("bank :", StringComparison.Ordinal))
+                        activeBlock = "bank";
+
+                    output.Add(line);
+                    continue;
+                }
+
+                if (trimmed == "}")
+                {
+                    activeBlock = null;
+                    skippingOriginalUserColors = false;
+                    // RC5.1H9 BEGIN: visited-city writer reset.
+                    skippingOriginalVisitedCitiesH9 = false;
+                    skippingOriginalVisitedCityCountsH9 = false;
+                    // RC5.1H9 END: visited-city writer reset.
+                    output.Add(line);
+                    continue;
+                }
+
+                int colonPosition = trimmed.IndexOf(':');
+                if (colonPosition < 0)
+                {
+                    output.Add(line);
+                    continue;
+                }
+
+                string tag = trimmed.Substring(0, colonPosition).Trim();
+
+                if (activeBlock == "economy")
+                {
+                    if (tag == "user_colors")
+                    {
+                        output.Add(" user_colors: " +
+                            SiiNunitData.Economy.user_colors.Count.ToString(CultureInfo.InvariantCulture));
+
+                        for (int i = 0; i < SiiNunitData.Economy.user_colors.Count; i++)
+                        {
+                            output.Add(" user_colors[" + i.ToString(CultureInfo.InvariantCulture) +
+                                "]: " + SiiNunitData.Economy.user_colors[i].ToString());
+                        }
+
+                        skippingOriginalUserColors = true;
+                        continue;
+                    }
+
+                    if (skippingOriginalUserColors &&
+                        tag.StartsWith("user_colors[", StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    skippingOriginalUserColors = false;
+
+                    // RC5.1H9 BEGIN: visited-city arrays.
+                    if (tag == "visited_cities")
+                    {
+                        output.Add(" visited_cities: " +
+                            SiiNunitData.Economy.visited_cities.Count.ToString(
+                                CultureInfo.InvariantCulture));
+
+                        for (int cityIndex = 0;
+                             cityIndex < SiiNunitData.Economy.visited_cities.Count;
+                             cityIndex++)
+                        {
+                            output.Add(
+                                " visited_cities[" +
+                                cityIndex.ToString(CultureInfo.InvariantCulture) +
+                                "]: " +
+                                SiiNunitData.Economy.visited_cities[cityIndex]);
+                        }
+
+                        skippingOriginalVisitedCitiesH9 = true;
+                        replaced.Add("economy.visited_cities");
+                        continue;
+                    }
+
+                    if (skippingOriginalVisitedCitiesH9 &&
+                        tag.StartsWith(
+                            "visited_cities[",
+                            StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    skippingOriginalVisitedCitiesH9 = false;
+
+                    if (tag == "visited_cities_count")
+                    {
+                        if (SiiNunitData.Economy.visited_cities_count.Count !=
+                            SiiNunitData.Economy.visited_cities.Count)
+                        {
+                            throw new InvalidDataException(
+                                "H9 encontrou quantidades incompatíveis nas cidades visitadas.");
+                        }
+
+                        output.Add(" visited_cities_count: " +
+                            SiiNunitData.Economy.visited_cities_count.Count.ToString(
+                                CultureInfo.InvariantCulture));
+
+                        for (int cityIndex = 0;
+                             cityIndex < SiiNunitData.Economy.visited_cities_count.Count;
+                             cityIndex++)
+                        {
+                            output.Add(
+                                " visited_cities_count[" +
+                                cityIndex.ToString(CultureInfo.InvariantCulture) +
+                                "]: " +
+                                SiiNunitData.Economy.visited_cities_count[cityIndex]
+                                    .ToString(CultureInfo.InvariantCulture));
+                        }
+
+                        skippingOriginalVisitedCityCountsH9 = true;
+                        replaced.Add("economy.visited_cities_count");
+                        continue;
+                    }
+
+                    if (skippingOriginalVisitedCityCountsH9 &&
+                        tag.StartsWith(
+                            "visited_cities_count[",
+                            StringComparison.Ordinal))
+                    {
+                        continue;
+                    }
+
+                    skippingOriginalVisitedCityCountsH9 = false;
+
+                    if (tag == "last_visited_city")
+                    {
+                        output.Add(" last_visited_city: " +
+                            SiiNunitData.Economy.last_visited_city);
+                        replaced.Add("economy.last_visited_city");
+                        continue;
+                    }
+                    // RC5.1H9 END: visited-city arrays.
+
+                    string replacement;
+                    if (economyReplacements.TryGetValue(tag, out replacement))
+                    {
+                        output.Add(" " + tag + ": " + replacement);
+                        replaced.Add("economy." + tag);
+                        continue;
+                    }
+                }
+                else if (activeBlock == "bank" && tag == "money_account")
+                {
+                    output.Add(" money_account: " +
+                        SiiNunitData.Bank.money_account.ToString(CultureInfo.InvariantCulture));
+                    replaced.Add("bank.money_account");
+                    continue;
+                }
+
+                output.Add(line);
+            }
+
+            string[] required =
+            {
+                "economy.experience_points",
+                "economy.adr",
+                "economy.long_dist",
+                "economy.heavy",
+                "economy.fragile",
+                "economy.urgent",
+                "economy.mechanical",
+                // RC5.1H9 BEGIN: visited-city required fields.
+                "economy.visited_cities",
+                "economy.visited_cities_count",
+                "economy.last_visited_city",
+                // RC5.1H9 END: visited-city required fields.
+                "bank.money_account"
+            };
+
+            string[] missing = required.Where(x => !replaced.Contains(x)).ToArray();
+            if (missing.Length > 0)
+            {
+                throw new InvalidDataException(
+                    "Could not locate required fields in decoded save: " +
+                    String.Join(", ", missing));
+            }
+
+            string modernOutput =
+                String.Join(Environment.NewLine, output);
+
+            return PatchModernDriverSkillsDataH20(
+                PatchModernMarketDataH13R(
+                    PatchModernGarageDataH101(
+                        PatchModernAccessoryPackageDataH19(
+                            PatchModernSteeringWheelDataH15(
+                                PatchModernTrailerSwitchDataH14(
+                                    PatchModernTruckSwitchData(
+                                        PatchModernVehicleData(modernOutput))))))));
+        }
+
+        private void ValidateSiiTextContent(string content, string description)
+        {
+            if (String.IsNullOrWhiteSpace(content))
+                throw new InvalidDataException(description + " output is empty.");
+
+            string trimmed = content.TrimStart('\uFEFF', ' ', '\t', '\r', '\n');
+            if (!trimmed.StartsWith("SiiNunit", StringComparison.Ordinal))
+                throw new InvalidDataException(description + " output does not start with SiiNunit.");
+
+            if (content.Length < 64 || content.IndexOf('{') < 0 || content.LastIndexOf('}') < 0)
+                throw new InvalidDataException(description + " output failed structural validation.");
+        }
+
+        private void AtomicReplaceText(string targetPath, string content, string description)
+        {
+            ValidateSiiTextContent(content, description);
+
+            string tempPath = targetPath + ".tsset.tmp";
+
+            try
+            {
+                File.WriteAllText(tempPath, content, new UTF8Encoding(false));
+
+                string written = File.ReadAllText(tempPath, Encoding.UTF8);
+                ValidateSiiTextContent(written, description + " temporary file");
+
+                if (File.Exists(targetPath))
+                {
+                    try
+                    {
+                        File.Replace(tempPath, targetPath, null, true);
+                    }
+                    catch (PlatformNotSupportedException)
+                    {
+                        File.Copy(tempPath, targetPath, true);
+                        File.Delete(tempPath);
+                    }
+                    catch (IOException)
+                    {
+                        File.Copy(tempPath, targetPath, true);
+                        File.Delete(tempPath);
+                    }
+                }
+                else
+                {
+                    File.Move(tempPath, targetPath);
+                }
+            }
+            catch
+            {
+                if (File.Exists(tempPath))
+                    File.Delete(tempPath);
+
+                throw;
+            }
+        }
+
+        private void BackupOriginalFile(string sourcePath, string standardBackupPath)
+        {
+            File.Copy(sourcePath, standardBackupPath, true);
+
+            string directory = Path.GetDirectoryName(sourcePath);
+            string baseName = Path.GetFileNameWithoutExtension(sourcePath);
+            string extension = Path.GetExtension(sourcePath);
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss", CultureInfo.InvariantCulture);
+            string timestampedBackup = Path.Combine(
+                directory,
+                baseName + "_backup_tsset_" + timestamp + extension);
+
+            if (!File.Exists(timestampedBackup))
+                File.Copy(sourcePath, timestampedBackup, false);
+        }
 
         //button_save_file
-        private void NewWrireSaveFile()
+        private void NewWrireSaveFile(object sender, DoWorkEventArgs e)
         {
-            string SiiSavePath = SavefilePath + @"\game.sii";
+            string ProfileFolderPath = Globals.SelectedProfilePath + "\\profile.sii";
+            string SiiInfoPath = Globals.SelectedSavePath + "\\info.sii";
+            string SiiSavePath = Globals.SelectedSavePath + "\\game.sii";
 
             UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Info, "message_saving_file");
 
@@ -944,39 +1399,80 @@ namespace TS_SE_Tool
             {
                 UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Error, "error_file_was_modified");
                 IO_Utilities.LogWriter("Save game was modified - reload file to prevent progress loss");
+                return;
             }
-            else
+
+            bool modernMode = IsModernCompatibilityMode();
+
+            if (!modernMode)
             {
-                //Prepare
                 PrepareEvents();
-
                 PrepareGarages();
-
                 PrepareGaragesWrite();
                 PrepareCompaniesJobWrite();
                 PrepareDriversTrucksWrite();
                 PrepareVisitedCitiesWrite();
-
                 PrepareUserColors();
-
                 PrintAddedJobs();
+            }
+            else
+            {
+                IO_Utilities.LogWriter(
+                    "Using modern RC5 Profile + Company + Advanced Active Vehicle writer for save version " +
+                    MainSaveFileInfoData.Version.ToString(CultureInfo.InvariantCulture));
 
-                //Write
-                using (StreamWriter writer = new StreamWriter(SiiSavePath, false))
-                {
-                    writer.Write(SiiNunitData.PrintOut(0));
-                }
-
-                UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Info, "message_file_saved");
-                
+                SiiNunitData.Economy.getPlayerSkillsFromArray();
+                PrepareModernVisitedCitiesH9();
+                MainSaveFileInfoData.UpdateProfileSummary(
+                    SiiNunitData.Economy.experience_points,
+                    SiiNunitData.Bank.money_account);
             }
 
-            //dispose attempt
-            SetDefaultValues(false);
-            ClearFormControls(true);
+            // Serialize and validate every output before touching an original file.
+            bool profileNeedsWrite =
+                MainSaveFileProfileData.isEdited ||
+                (modernMode &&
+                 MainSaveFileProfileData.CachedExperiencePoints !=
+                 SiiNunitData.Economy.experience_points);
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
+            string profileOutput = profileNeedsWrite
+                ? (modernMode ? BuildModernProfileText() : MainSaveFileProfileData.PrintOut())
+                : null;
+
+            string infoOutput = (modernMode || MainSaveFileInfoData.isEdited)
+                ? MainSaveFileInfoData.PrintOut()
+                : null;
+
+            string saveOutput = modernMode
+                ? BuildModernSaveText()
+                : SiiNunitData.PrintOut(MainSaveFileInfoData.Version);
+
+            if (profileOutput != null)
+                ValidateSiiTextContent(profileOutput, "Profile");
+
+            if (infoOutput != null)
+                ValidateSiiTextContent(infoOutput, "Info");
+
+            ValidateSiiTextContent(saveOutput, "Save");
+
+            string ProfileFolderPathBackup = Globals.SelectedProfilePath + "\\profile_backup.sii";
+            string SiiInfoPathBackup = Globals.SelectedSavePath + "\\info_backup.sii";
+            string SiiSavePathBackup = Globals.SelectedSavePath + "\\game_backup.sii";
+
+            BackupOriginalFile(ProfileFolderPath, ProfileFolderPathBackup);
+            BackupOriginalFile(SiiInfoPath, SiiInfoPathBackup);
+            BackupOriginalFile(SiiSavePath, SiiSavePathBackup);
+
+            if (profileOutput != null)
+                AtomicReplaceText(ProfileFolderPath, profileOutput, "Profile");
+
+            if (infoOutput != null)
+                AtomicReplaceText(SiiInfoPath, infoOutput, "Info");
+
+            AtomicReplaceText(SiiSavePath, saveOutput, "Save");
+
+
+            UpdateStatusBarMessage.ShowStatusMessage(SMStatus.Info, "message_file_saved");
         }
 
         private void GetTranslationFiles()
@@ -1070,10 +1566,10 @@ namespace TS_SE_Tool
         //Caching
         private void CacheGameData()
         {
-            worker = new BackgroundWorker();
-            worker.WorkerReportsProgress = false;
-            worker.DoWork += CacheExternalGameData;
-            worker.RunWorkerAsync();
+            generalWorker = new BackgroundWorker();
+            generalWorker.WorkerReportsProgress = false;
+            generalWorker.DoWork += CacheExternalGameData;
+            generalWorker.RunWorkerAsync();
         }
 
         private void CacheExternalGameData(object sender, DoWorkEventArgs e)

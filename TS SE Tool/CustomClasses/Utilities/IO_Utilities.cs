@@ -85,18 +85,101 @@ namespace TS_SE_Tool.Utilities
             { }
         }
 
-        internal static void ErrorLogWriter(string _error)
+        private static bool IsCompatibilityDiagnostic(string message)
+        {
+            if (String.IsNullOrWhiteSpace(message))
+                return false;
+
+            string normalized = message
+                .Replace("\r\n", "\n")
+                .Replace("\r", "\n")
+                .TrimStart();
+
+            if (normalized.StartsWith(
+                    "Save | New Data block | ",
+                    StringComparison.Ordinal))
+                return true;
+
+            int lineEnd = normalized.IndexOf('\n');
+            string firstLine = lineEnd >= 0
+                ? normalized.Substring(0, lineEnd)
+                : normalized;
+
+            int separator = firstLine.IndexOf(
+                " | ",
+                StringComparison.Ordinal);
+            int assignment = firstLine.IndexOf(
+                " = ",
+                StringComparison.Ordinal);
+
+            return separator > 0 && assignment > separator + 3;
+        }
+
+        internal static void CompatibilityLogWriter(string message)
         {
             try
             {
-                using (StreamWriter writer = new StreamWriter(Directory.GetCurrentDirectory() + @"\errorlog.log", true))
+                using (StreamWriter writer = new StreamWriter(
+                    Directory.GetCurrentDirectory() + @"\compatibility.log",
+                    true))
                 {
-                    writer.WriteLine(AssemblyData.AssemblyProduct + " - " + AssemblyData.AssemblyVersion);
-                    writer.WriteLine(DateTime.Now + "\r\n" + _error + "\r\n");
+                    writer.WriteLine(
+                        DateTime.Now + " | " +
+                        AssemblyData.AssemblyProduct + " - " +
+                        AssemblyData.AssemblyVersion + " | " +
+                        Globals.SelectedProfileName + " [ " +
+                        Globals.SelectedProfile + " ] >> " +
+                        Globals.SelectedSaveName + " [ " +
+                        Globals.SelectedSave + " ] ");
+                    writer.WriteLine(message + Environment.NewLine);
                 }
             }
             catch
             { }
+        }
+
+        internal static void ErrorLogWriter(string _error)
+        {
+            if (IsCompatibilityDiagnostic(_error))
+            {
+                CompatibilityLogWriter(_error);
+                return;
+            }
+
+            try
+            {
+                using (StreamWriter writer = new StreamWriter(Directory.GetCurrentDirectory() + @"\errorlog.log", true))
+                {
+                    writer.WriteLine(DateTime.Now + " | " + AssemblyData.AssemblyProduct + " - " + AssemblyData.AssemblyVersion + " | " + 
+                                    Globals.SelectedProfileName + " [ " + Globals.SelectedProfile + " ] >> " + 
+                                    Globals.SelectedSaveName + " [ " + Globals.SelectedSave + " ] ");
+                    writer.WriteLine(_error + Environment.NewLine);
+                }
+            }
+            catch
+            { }
+        }
+
+        internal static void WritePreviewTOBJ(string _path, string _name, string _pathToTGA)
+        {
+            WritePreviewTOBJ(_path + "\\" + _name + ".tobj", _pathToTGA);
+        }
+
+        internal static void WritePreviewTOBJ(string _pathToTOBJ, string _pathToTGA)
+        {
+            using (BinaryWriter binWriter = new BinaryWriter(File.Open(_pathToTOBJ, FileMode.Create)))
+            {
+                byte[] preview_tobj = new byte[] { 1, 10, 177, 112, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 3, 3, 2, 0, 2, 2, 2, 1, 0, 0, 0, 1, 0, 0 };
+
+                binWriter.Write(preview_tobj);
+
+                byte filePathLength = (byte)_pathToTGA.Length;
+                binWriter.Write(filePathLength);
+
+                binWriter.Write(new byte[] { 0, 0, 0, 0, 0, 0, 0 });
+
+                binWriter.Write(Encoding.UTF8.GetBytes(_pathToTGA));
+            }
         }
     }
 }

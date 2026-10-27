@@ -14,16 +14,16 @@ namespace TS_SE_Tool.Save.Items
         internal string company_truck { get; set; } = "";
         internal string company_trailer { get; set; } = "";
 
-        internal Vector_3f_4f target_placement { get; set; } = new Vector_3f_4f();
-        internal Vector_3f_4f target_placement_medium { get; set; } = new Vector_3f_4f();
-        internal Vector_3f_4f target_placement_hard { get; set; } = new Vector_3f_4f();
-        internal Vector_3f_4f target_placement_rigid { get; set; } = new Vector_3f_4f();
-        internal Vector_3f_4f source_placement { get; set; } = new Vector_3f_4f();
+        internal SCS_Placement target_placement { get; set; } = new SCS_Placement();
+        internal SCS_Placement target_placement_medium { get; set; } = new SCS_Placement();
+        internal SCS_Placement target_placement_hard { get; set; } = new SCS_Placement();
+        internal SCS_Placement target_placement_rigid { get; set; } = new SCS_Placement();
+        internal SCS_Placement source_placement { get; set; } = new SCS_Placement();
 
         internal int? selected_target { get; set; } = 0;
         internal int time_lower_limit { get; set; } = 0;
         internal int? time_upper_limit { get; set; } = 0;
-        internal int job_distance { get; set; } = 0;
+        internal SCS_Float job_distance { get; set; } = 0;
 
         internal SCS_Float fuel_consumed { get; set; } = 0;
         internal SCS_Float last_reported_fuel { get; set; } = 0;
@@ -105,31 +105,31 @@ namespace TS_SE_Tool.Save.Items
 
                         case "target_placement":
                             {
-                                target_placement = new Vector_3f_4f(dataLine);
+                                target_placement = new SCS_Placement(dataLine);
                                 break;
                             }
 
                         case "target_placement_medium":
                             {
-                                target_placement_medium = new Vector_3f_4f(dataLine);
+                                target_placement_medium = new SCS_Placement(dataLine);
                                 break;
                             }
 
                         case "target_placement_hard":
                             {
-                                target_placement_hard = new Vector_3f_4f(dataLine);
+                                target_placement_hard = new SCS_Placement(dataLine);
                                 break;
                             }
 
                         case "target_placement_rigid":
                             {
-                                target_placement_rigid = new Vector_3f_4f(dataLine);
+                                target_placement_rigid = new SCS_Placement(dataLine);
                                 break;
                             }
 
                         case "source_placement":
                             {
-                                source_placement = new Vector_3f_4f(dataLine);
+                                source_placement = new SCS_Placement(dataLine);
                                 break;
                             }
 
@@ -153,7 +153,7 @@ namespace TS_SE_Tool.Save.Items
 
                         case "job_distance":
                             {
-                                job_distance = int.Parse(dataLine);
+                                job_distance = dataLine;
                                 break;
                             }
 

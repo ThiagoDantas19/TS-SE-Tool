@@ -13,7 +13,7 @@ namespace TS_SE_Tool.Save.Items
     {
 
         internal int offset { get; set; } = 0;
-        internal Vector_3f paint_color { get; set; } = new Vector_3f();
+        internal SCS_Float_3 paint_color { get; set; } = new SCS_Float_3();
 
         internal string data_path { get; set; } = "";
         internal uint refund { get; set; } = 0;
@@ -59,7 +59,7 @@ namespace TS_SE_Tool.Save.Items
 
                         case "paint_color":
                             {
-                                paint_color = new Vector_3f(dataLine);
+                                paint_color = new SCS_Float_3(dataLine);
                                 break;
                             }
 
@@ -116,6 +116,11 @@ namespace TS_SE_Tool.Save.Items
             this.removeWritenBlock(_nameless);
 
             return returnString;
+        }
+
+        public override string ToString()
+        {
+            return base.ToString().Split(new char[] { '.' })[3];
         }
     }
 }

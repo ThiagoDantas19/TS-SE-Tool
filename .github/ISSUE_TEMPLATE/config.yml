@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Suporte e documentação
+    url: https://github.com/ThiagoDantas19/TS-SE-Tool/blob/master/SUPPORT.md
+    about: Leia a lista de verificação de suporte antes de abrir uma Issue.

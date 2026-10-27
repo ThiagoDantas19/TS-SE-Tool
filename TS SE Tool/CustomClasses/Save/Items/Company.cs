@@ -14,7 +14,7 @@ namespace TS_SE_Tool.Save.Items
 
         internal string delivered_trailer { get; set; } = "";
 
-        internal List<Vector_3f> delivered_pos { get; set; } = new List<Vector_3f>();
+        internal List<SCS_Placement> delivered_pos { get; set; } = new List<SCS_Placement>();
 
         internal List<string> job_offer { get; set; } = new List<string>();
 
@@ -24,6 +24,9 @@ namespace TS_SE_Tool.Save.Items
 
         internal int? reserved_trailer_slot { get; set; } = null;
 
+        internal uint state { get; set; } = 0;
+
+        internal uint state_change_time { get; set; } = 0;
 
         internal Company()
         { }
@@ -75,7 +78,7 @@ namespace TS_SE_Tool.Save.Items
 
                         case var s when s.StartsWith("delivered_pos["):
                             {
-                                delivered_pos.Add(new Vector_3f(dataLine));
+                                delivered_pos.Add(new SCS_Placement(dataLine));
                                 break;
                             }
 
@@ -115,6 +118,17 @@ namespace TS_SE_Tool.Save.Items
                                 break;
                             }
 
+                        case "state":
+                            {
+                                state = uint.Parse(dataLine);
+                                break;
+                            }
+
+                        case " state_change_time":
+                            {
+                                state_change_time = uint.Parse(dataLine);
+                                break;
+                            }
                     }
                 }
                 catch (Exception ex)
@@ -152,6 +166,12 @@ namespace TS_SE_Tool.Save.Items
             returnSB.AppendLine(" discovered: " + discovered.ToString().ToLower());
 
             returnSB.AppendLine(" reserved_trailer_slot: " + (reserved_trailer_slot == null ? "nil" : reserved_trailer_slot.ToString()));
+
+            if (_version >= (byte)saveVTV.v146)
+            {
+                returnSB.AppendLine(" state: " + state.ToString());
+                returnSB.AppendLine(" state_change_time: " + state_change_time.ToString());
+            }
 
             returnSB.AppendLine("}");
 
